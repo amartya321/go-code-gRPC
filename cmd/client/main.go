@@ -9,6 +9,7 @@ import (
 
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
+	"google.golang.org/grpc/status"
 )
 
 func main() {
@@ -28,7 +29,12 @@ func main() {
 
 	resp, err := c.SayHello(ctx, &hellov1.HelloRequest{FullName: "Amartya"})
 	if err != nil {
-		log.Fatalf("SayHello: %v", err)
+		st, ok := status.FromError(err)
+		if ok {
+			log.Printf("gRPC error: code=%s message=%s", st.Code(), st.Message())
+			return
+		}
+		log.Fatalf("non-gRPC error: %v", err)
 	}
 
 	log.Println("Response:", resp.GetMessage())

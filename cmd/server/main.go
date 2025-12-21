@@ -4,10 +4,13 @@ import (
 	"context"
 	"log"
 	"net"
+	"time"
 
 	hellov1 "grpc-lab/gen/hello/v1"
 
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
 type greeterServer struct {
@@ -17,7 +20,20 @@ type greeterServer struct {
 func (s *greeterServer) SayHello(ctx context.Context, req *hellov1.HelloRequest) (*hellov1.HelloReply, error) {
 	name := req.GetFullName()
 	if name == "" {
-		name = "stranger"
+		return nil, status.Error(codes.InvalidArgument, "full_name is required")
+	}
+	select {
+	case <-time.After(3 * time.Second):
+		// continue
+	case <-ctx.Done():
+		switch ctx.Err() {
+		case context.DeadlineExceeded:
+			return nil, status.Error(codes.DeadlineExceeded, "deadline exceeded")
+		case context.Canceled:
+			return nil, status.Error(codes.Canceled, "request cancelled by client")
+		default:
+			return nil, status.Error(codes.Canceled, "request ended")
+		}
 	}
 	return &hellov1.HelloReply{Message: "Hello, " + name + " 👋"}, nil
 }

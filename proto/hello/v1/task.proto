@@ -1,0 +1,53 @@
+syntax = "proto3";
+
+package task.v1;
+import "google/protobuf/timestamp.proto";
+
+option go_package = "grpc-lab/gen/task/v1;taskv1";
+
+enum TaskStatus{
+    TASK_STATUS_UNSPECIFIED = 0;
+    TASK_STATUS_PENDING = 1;
+    TASK_STATUS_RUNNING = 2;
+    TASK_STATUS_COMPLETED = 3;
+    TASK_STATUS_FAILED = 4;
+    TASK_STATUS_CANCELED = 5;
+}
+
+message Task {
+    string task_id = 1;
+    string title = 2;
+    string description = 3;
+    TaskStatus status = 4;
+    google.protobuf.Timestamp created_at = 5;
+    google.protobuf.Timestamp updated_at = 6;
+}
+
+message CreateTaskRequest{
+    string title = 1;
+    string description = 2;
+}
+
+message CreateTaskResponse{
+    Task task = 1;
+}
+
+message GetTaskRequest{
+    string task_id = 1;
+}
+
+message ListTasksRequest{
+    int32 page_size = 1;
+    string page_token = 2;
+}
+
+message ListTasksResponse{
+    repeated Task tasks = 1;
+    string next_page_token = 2;
+}
+
+service TaskService{
+    rpc CreateTask(CreateTaskRequest) returns (CreateTaskResponse);
+    rpc GetTask(GetTaskRequest) returns (Task);
+    rpc ListTasks(ListTasksRequest) returns (ListTasksResponse);
+}
