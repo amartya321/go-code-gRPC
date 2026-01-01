@@ -46,7 +46,7 @@ func (s *greeterServer) SayHello(ctx context.Context, req *hellov1.HelloRequest)
 type TaskServiceServer struct {
 	taskv1.UnimplementedTaskServiceServer
 
-	mu        sync.Mutex
+	mu        sync.RWMutex
 	taskMap   map[string]*taskv1.Task
 	taskSlice []*taskv1.Task
 }
@@ -78,6 +78,20 @@ func (s *TaskServiceServer) CreateTask(ctx context.Context, req *taskv1.CreateTa
 	s.taskMap[task.TaskId] = task
 	s.taskSlice = append(s.taskSlice, task)
 	return &taskv1.CreateTaskResponse{Task: task}, nil
+}
+
+func (s *TaskServiceServer) GetTask(ctx context.Context, req *taskv1.GetTaskRequest) (res *taskv1.Task, err error) {
+	id := strings.TrimSpace(req.GetTaskId())
+	if id == "" {
+		return nil, status.Error(codes.InvalidArgument, "task_id is required")
+	}
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	task, ok := s.taskMap[id]
+	if !ok {
+		return nil, status.Error(codes.NotFound, "task not found with id "+id)
+	}
+	return task, nil
 }
 
 func main() {
