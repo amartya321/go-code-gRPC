@@ -77,7 +77,6 @@ func (s *TaskServiceServer) CreateTask(ctx context.Context, req *taskv1.CreateTa
 	defer s.mu.Unlock()
 	s.taskMap[task.TaskId] = task
 	s.taskSlice = append(s.taskSlice, task)
-	s.mu.Unlock()
 	return &taskv1.CreateTaskResponse{Task: task}, nil
 }
 
