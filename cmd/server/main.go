@@ -4,6 +4,7 @@ import (
 	"context"
 	"log"
 	"net"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -92,6 +93,46 @@ func (s *TaskServiceServer) GetTask(ctx context.Context, req *taskv1.GetTaskRequ
 		return nil, status.Error(codes.NotFound, "task not found with id "+id)
 	}
 	return task, nil
+}
+
+func (s *TaskServiceServer) ListTasks(ctx context.Context, req *taskv1.ListTasksRequest) (res *taskv1.ListTasksResponse, err error) {
+	page_size := req.GetPageSize()
+	if page_size <= 0 {
+		page_size = 10
+	} else if page_size > 100 {
+		page_size = 100
+	}
+	offset := 0
+	page_token := req.GetPageToken()
+	if page_token == "" {
+		offset = 0
+	} else {
+		offset, err = strconv.Atoi(page_token)
+		if err != nil || offset < 0 {
+			return nil, status.Error(codes.InvalidArgument, "invalid page_token")
+		}
+		if offset >= len(s.taskSlice) {
+			return &taskv1.ListTasksResponse{
+				Tasks:         []*taskv1.Task{},
+				NextPageToken: "",
+			}, nil
+		}
+	}
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	start := offset
+	end := min(offset+int(page_size), len(s.taskSlice))
+	res = &taskv1.ListTasksResponse{
+		Tasks: make([]*taskv1.Task, 0),
+	}
+	res.Tasks = s.taskSlice[start:end]
+	if end >= len(s.taskSlice) {
+		res.NextPageToken = ""
+	} else {
+		res.NextPageToken = strconv.Itoa(end)
+	}
+	return res, nil
+
 }
 
 func main() {

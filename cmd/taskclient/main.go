@@ -6,6 +6,7 @@ import (
 	taskv1 "grpc-lab/gen/task/v1"
 	"log"
 	"os"
+	"strconv"
 	"strings"
 	"time"
 
@@ -48,6 +49,32 @@ func runGet(ctx context.Context, c taskv1.TaskServiceClient, args []string) erro
 	return nil
 }
 
+func runList(ctx context.Context, c taskv1.TaskServiceClient, args []string) error {
+	page_size := 10
+	page_token := ""
+	var err error
+	if len(args) >= 1 {
+		page_size, err = strconv.Atoi(args[0])
+		if err != nil {
+			return fmt.Errorf("invalid page_size: %s", args[0])
+		}
+	}
+	if len(args) == 2 {
+		page_token = args[1]
+	}
+	req := &taskv1.ListTasksRequest{PageSize: int32(page_size), PageToken: page_token}
+	resp, err := c.ListTasks(ctx, req)
+	if err != nil {
+		return err
+	}
+	for _, task := range resp.GetTasks() {
+		log.Printf("Task ID: %s Title: %s Description: %s,", task.GetTaskId(), task.GetTitle(), task.GetDescription())
+	}
+	log.Printf("Next Page Token %s", resp.GetNextPageToken())
+	return nil
+
+}
+
 func main() {
 	var cmd string
 	var args []string
@@ -75,6 +102,8 @@ func main() {
 		err = runCreate(ctx, c, args)
 	case "get":
 		err = runGet(ctx, c, args)
+	case "list":
+		err = runList(ctx, c, args)
 	default:
 		log.Printf("Unknown command: %s. Usage: taskclient create <title> [description] | taskclient get <task_id>", cmd)
 		return
