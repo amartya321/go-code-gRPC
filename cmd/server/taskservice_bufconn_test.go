@@ -250,3 +250,38 @@ func TestTaskService_Get_InvalidArgument(t *testing.T) {
 		})
 	}
 }
+
+func TestTaskService_List_InvalidArgument(t *testing.T) {
+	client, cleanup := newBufconnClient(t)
+	defer cleanup()
+
+	cases := []struct {
+		name string
+		req  *taskv1.ListTasksRequest
+		code codes.Code
+	}{
+		{
+			name: "non-numeric page_token",
+			req:  &taskv1.ListTasksRequest{PageSize: 10, PageToken: "abc"},
+			code: codes.InvalidArgument,
+		},
+		{
+			name: "negative page_token",
+			req:  &taskv1.ListTasksRequest{PageSize: 10, PageToken: "-1"},
+			code: codes.InvalidArgument,
+		},
+	}
+
+	for _, tc := range cases {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			_, err := client.ListTasks(context.Background(), tc.req)
+			if err == nil {
+				t.Fatalf("expected error, got nil")
+			}
+			if status.Code(err) != tc.code {
+				t.Fatalf("expected code %v, got %v", tc.code, status.Code(err))
+			}
+		})
+	}
+}
