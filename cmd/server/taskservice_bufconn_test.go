@@ -183,3 +183,37 @@ func TestTaskService_List_Pagination(t *testing.T) {
 		t.Fatalf("expected empty next_page_token on last page, got %q", page3.GetNextPageToken())
 	}
 }
+
+func TestTaskService_Create_InvalidArgument(t *testing.T) {
+	client, cleanup := newBufconnClient(t)
+	defer cleanup()
+	cases := []struct {
+		name string
+		req  *taskv1.CreateTaskRequest
+		code codes.Code
+	}{
+		{
+			name: "empty title",
+			req:  &taskv1.CreateTaskRequest{Title: ""},
+			code: codes.InvalidArgument,
+		},
+		{
+			name: "whitespace title",
+			req:  &taskv1.CreateTaskRequest{Title: "   "},
+			code: codes.InvalidArgument,
+		},
+	}
+
+	for _, tc := range cases {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			_, err := client.CreateTask(context.Background(), tc.req)
+			if err == nil {
+				t.Fatalf("expected error, got nil")
+			}
+			if status.Code(err) != tc.code {
+				t.Fatalf("expected code %v, got %v", tc.code, status.Code(err))
+			}
+		})
+	}
+}
