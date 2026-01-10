@@ -217,3 +217,36 @@ func TestTaskService_Create_InvalidArgument(t *testing.T) {
 		})
 	}
 }
+
+func TestTaskService_Get_InvalidArgument(t *testing.T) {
+	client, cleanup := newBufconnClient(t)
+	defer cleanup()
+	cases := []struct {
+		name string
+		req  *taskv1.GetTaskRequest
+		code codes.Code
+	}{
+		{
+			name: "empty task_id",
+			req:  &taskv1.GetTaskRequest{TaskId: ""},
+			code: codes.InvalidArgument,
+		},
+		{
+			name: "whitespace task_id",
+			req:  &taskv1.GetTaskRequest{TaskId: "   "},
+			code: codes.InvalidArgument,
+		},
+	}
+	for _, tc := range cases {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			_, err := client.GetTask(context.Background(), tc.req)
+			if err == nil {
+				t.Fatalf("expected error, got nil")
+			}
+			if status.Code(err) != tc.code {
+				t.Fatalf("expected code %v, got %v", tc.code, status.Code(err))
+			}
+		})
+	}
+}
