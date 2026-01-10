@@ -286,6 +286,39 @@ func TestTaskService_List_InvalidArgument(t *testing.T) {
 	}
 }
 
+func TestTaskService_CreateWithId_InvalidArgument(t *testing.T) {
+	client, cleanup := newBufconnClient(t)
+	defer cleanup()
+	cases := []struct {
+		name string
+		req  *taskv1.CreateTaskWithIdRequest
+		code codes.Code
+	}{
+		{
+			name: "empty task_id",
+			req:  &taskv1.CreateTaskWithIdRequest{TaskId: "", Title: "Test Task"},
+			code: codes.InvalidArgument,
+		},
+		{
+			name: "whitespace task_id",
+			req:  &taskv1.CreateTaskWithIdRequest{TaskId: "   ", Title: "Test Task"},
+			code: codes.InvalidArgument,
+		},
+	}
+	for _, tc := range cases {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			_, err := client.CreateTaskWithId(context.Background(), tc.req)
+			if err == nil {
+				t.Fatalf("expected error, got nil")
+			}
+			if status.Code(err) != tc.code {
+				t.Fatalf("expected code %v, got %v", tc.code, status.Code(err))
+			}
+		})
+	}
+}
+
 func TestTaskService_CreateWithIdThenCreatewithId_AlreadyExists(t *testing.T) {
 	client, cleanup := newBufconnClient(t)
 	defer cleanup()
