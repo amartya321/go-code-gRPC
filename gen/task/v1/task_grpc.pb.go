@@ -8,7 +8,6 @@ package taskv1
 
 import (
 	context "context"
-
 	grpc "google.golang.org/grpc"
 	codes "google.golang.org/grpc/codes"
 	status "google.golang.org/grpc/status"
@@ -20,9 +19,10 @@ import (
 const _ = grpc.SupportPackageIsVersion9
 
 const (
-	TaskService_CreateTask_FullMethodName = "/task.v1.TaskService/CreateTask"
-	TaskService_GetTask_FullMethodName    = "/task.v1.TaskService/GetTask"
-	TaskService_ListTasks_FullMethodName  = "/task.v1.TaskService/ListTasks"
+	TaskService_CreateTask_FullMethodName       = "/task.v1.TaskService/CreateTask"
+	TaskService_GetTask_FullMethodName          = "/task.v1.TaskService/GetTask"
+	TaskService_ListTasks_FullMethodName        = "/task.v1.TaskService/ListTasks"
+	TaskService_CreateTaskWithId_FullMethodName = "/task.v1.TaskService/CreateTaskWithId"
 )
 
 // TaskServiceClient is the client API for TaskService service.
@@ -32,6 +32,7 @@ type TaskServiceClient interface {
 	CreateTask(ctx context.Context, in *CreateTaskRequest, opts ...grpc.CallOption) (*CreateTaskResponse, error)
 	GetTask(ctx context.Context, in *GetTaskRequest, opts ...grpc.CallOption) (*Task, error)
 	ListTasks(ctx context.Context, in *ListTasksRequest, opts ...grpc.CallOption) (*ListTasksResponse, error)
+	CreateTaskWithId(ctx context.Context, in *CreateTaskWithIdRequest, opts ...grpc.CallOption) (*CreateTaskResponse, error)
 }
 
 type taskServiceClient struct {
@@ -72,6 +73,16 @@ func (c *taskServiceClient) ListTasks(ctx context.Context, in *ListTasksRequest,
 	return out, nil
 }
 
+func (c *taskServiceClient) CreateTaskWithId(ctx context.Context, in *CreateTaskWithIdRequest, opts ...grpc.CallOption) (*CreateTaskResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(CreateTaskResponse)
+	err := c.cc.Invoke(ctx, TaskService_CreateTaskWithId_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // TaskServiceServer is the server API for TaskService service.
 // All implementations must embed UnimplementedTaskServiceServer
 // for forward compatibility.
@@ -79,6 +90,7 @@ type TaskServiceServer interface {
 	CreateTask(context.Context, *CreateTaskRequest) (*CreateTaskResponse, error)
 	GetTask(context.Context, *GetTaskRequest) (*Task, error)
 	ListTasks(context.Context, *ListTasksRequest) (*ListTasksResponse, error)
+	CreateTaskWithId(context.Context, *CreateTaskWithIdRequest) (*CreateTaskResponse, error)
 	mustEmbedUnimplementedTaskServiceServer()
 }
 
@@ -97,6 +109,9 @@ func (UnimplementedTaskServiceServer) GetTask(context.Context, *GetTaskRequest) 
 }
 func (UnimplementedTaskServiceServer) ListTasks(context.Context, *ListTasksRequest) (*ListTasksResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method ListTasks not implemented")
+}
+func (UnimplementedTaskServiceServer) CreateTaskWithId(context.Context, *CreateTaskWithIdRequest) (*CreateTaskResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method CreateTaskWithId not implemented")
 }
 func (UnimplementedTaskServiceServer) mustEmbedUnimplementedTaskServiceServer() {}
 func (UnimplementedTaskServiceServer) testEmbeddedByValue()                     {}
@@ -173,6 +188,24 @@ func _TaskService_ListTasks_Handler(srv interface{}, ctx context.Context, dec fu
 	return interceptor(ctx, in, info, handler)
 }
 
+func _TaskService_CreateTaskWithId_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(CreateTaskWithIdRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(TaskServiceServer).CreateTaskWithId(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: TaskService_CreateTaskWithId_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(TaskServiceServer).CreateTaskWithId(ctx, req.(*CreateTaskWithIdRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // TaskService_ServiceDesc is the grpc.ServiceDesc for TaskService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -191,6 +224,10 @@ var TaskService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "ListTasks",
 			Handler:    _TaskService_ListTasks_Handler,
+		},
+		{
+			MethodName: "CreateTaskWithId",
+			Handler:    _TaskService_CreateTaskWithId_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

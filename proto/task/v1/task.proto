@@ -28,6 +28,12 @@ message CreateTaskRequest{
     string description = 2;
 }
 
+message CreateTaskWithIdRequest{
+    string task_id = 1;
+    string title = 2;
+    string description = 3;
+}
+
 message CreateTaskResponse{
     Task task = 1;
 }
@@ -50,4 +56,5 @@ service TaskService{
     rpc CreateTask(CreateTaskRequest) returns (CreateTaskResponse);
     rpc GetTask(GetTaskRequest) returns (Task);
     rpc ListTasks(ListTasksRequest) returns (ListTasksResponse);
+    rpc CreateTaskWithId(CreateTaskWithIdRequest) returns (CreateTaskResponse);
 }
