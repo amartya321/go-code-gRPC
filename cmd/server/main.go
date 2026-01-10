@@ -95,6 +95,34 @@ func (s *TaskServiceServer) GetTask(ctx context.Context, req *taskv1.GetTaskRequ
 	return task, nil
 }
 
+func (s *TaskServiceServer) CreateTaskWithId(ctx context.Context, req *taskv1.CreateTaskWithIdRequest) (res *taskv1.CreateTaskResponse, err error) {
+	task_id := strings.TrimSpace(req.GetTaskId())
+	if task_id == "" {
+		return nil, status.Error(codes.InvalidArgument, "task_id is required")
+	}
+	title := strings.TrimSpace(req.GetTitle())
+	if title == "" {
+		return nil, status.Error(codes.InvalidArgument, "title is required")
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if _, exists := s.taskMap[task_id]; exists {
+		return nil, status.Error(codes.AlreadyExists, "task with id "+task_id+" already exists")
+	}
+	now := timestamppb.New(time.Now())
+	task := &taskv1.Task{
+		TaskId:      task_id,
+		Title:       title,
+		Description: strings.TrimSpace(req.GetDescription()),
+		CreatedAt:   now,
+		UpdatedAt:   now,
+		Status:      taskv1.TaskStatus_TASK_STATUS_PENDING,
+	}
+	s.taskMap[task.TaskId] = task
+	s.taskSlice = append(s.taskSlice, task)
+	return &taskv1.CreateTaskResponse{Task: task}, nil
+}
+
 func (s *TaskServiceServer) ListTasks(ctx context.Context, req *taskv1.ListTasksRequest) (res *taskv1.ListTasksResponse, err error) {
 	page_size := req.GetPageSize()
 	if page_size <= 0 {

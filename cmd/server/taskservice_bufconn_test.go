@@ -285,3 +285,32 @@ func TestTaskService_List_InvalidArgument(t *testing.T) {
 		})
 	}
 }
+
+func TestTaskService_CreateWithIdThenCreatewithId_AlreadyExists(t *testing.T) {
+	client, cleanup := newBufconnClient(t)
+	defer cleanup()
+	_, err := client.CreateTaskWithId(context.Background(), &taskv1.CreateTaskWithIdRequest{
+		TaskId:      "task-123",
+		Title:       "Test Task",
+		Description: "This is a test task",
+	})
+	if err != nil {
+		t.Fatalf("CreateTaskWithId failed: %v", err)
+	}
+	_, err = client.CreateTaskWithId(context.Background(), &taskv1.CreateTaskWithIdRequest{
+		TaskId:      "task-123",
+		Title:       "Another Task",
+		Description: "This task should fail",
+	})
+	if err == nil {
+		t.Fatalf("expected error, got nil")
+	}
+
+	st, ok := status.FromError(err)
+	if !ok {
+		t.Fatalf("expected gRPC status error")
+	}
+	if st.Code() != codes.AlreadyExists {
+		t.Fatalf("expected AlreadyExists, got %v", st.Code())
+	}
+}
