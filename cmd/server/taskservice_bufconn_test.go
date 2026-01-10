@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	taskv1 "grpc-lab/gen/task/v1"
+	retry "grpc-lab/internal/retry"
 
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
@@ -77,7 +78,7 @@ func newBufconnClientWithServer(t *testing.T) (taskv1.TaskServiceClient, *TaskSe
 	}
 
 	conn, err := grpc.DialContext(
-		ctxWithAuth("devtoken"),
+		context.Background(),
 		"bufnet",
 		grpc.WithContextDialer(dialer),
 		grpc.WithTransportCredentials(insecure.NewCredentials()),
@@ -446,26 +447,12 @@ func TestTaskService_CreateTask_SimulatedFailure(t *testing.T) {
 		t.Fatalf("expected Unavailable, got %v", st.Code())
 	}
 }
-func callWithRetry(ctx context.Context, attempts int, fn func(context.Context) error) error {
-	var err error
-	for i := 0; i < attempts; i++ {
-		err = fn(ctx)
-		if err == nil {
-			return nil
-		}
-		if status.Code(err) == codes.Unavailable {
-			continue
-		} else {
-			return err
-		}
-	}
-	return err
-}
+
 func TestTaskService_CreateTask_RetrySucceed(t *testing.T) {
 	client, server, cleanup := newBufconnClientWithServer(t)
 	defer cleanup()
 	server.FailNextUnavailable()
-	err := callWithRetry(ctxWithAuth("devtoken"), 3, func(ctx context.Context) error {
+	err := retry.CallWithRetry(ctxWithAuth("devtoken"), 3, func(ctx context.Context) error {
 		_, err := client.CreateTask(ctx, &taskv1.CreateTaskRequest{
 			Title:       "buy milk",
 			Description: "tonight",
@@ -474,5 +461,26 @@ func TestTaskService_CreateTask_RetrySucceed(t *testing.T) {
 	})
 	if err != nil {
 		t.Fatalf("expected no error after retry, got %v", err)
+	}
+}
+func TestTaskService_CreateTask_NoRetryonInvalidArgument(t *testing.T) {
+	client, cleanup := newBufconnClient(t)
+	defer cleanup()
+	err := retry.CallWithRetry(ctxWithAuth("devtoken"), 3, func(ctx context.Context) error {
+		_, err := client.CreateTask(ctx, &taskv1.CreateTaskRequest{
+			Title:       "",
+			Description: "tonight",
+		})
+		return err
+	})
+	if err == nil {
+		t.Fatalf("expected error, got nil")
+	}
+	st, ok := status.FromError(err)
+	if !ok {
+		t.Fatalf("expected gRPC status error")
+	}
+	if st.Code() != codes.InvalidArgument {
+		t.Fatalf("expected InvalidArgument, got %v", st.Code())
 	}
 }

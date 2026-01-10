@@ -68,12 +68,13 @@ func NewTaskServiceServer() *TaskServiceServer {
 }
 
 func (s *TaskServiceServer) CreateTask(ctx context.Context, req *taskv1.CreateTaskRequest) (res *taskv1.CreateTaskResponse, err error) {
+	s.mu.Lock()
 	if s.failNext {
-		s.mu.Lock()
 		s.failNext = false
 		s.mu.Unlock()
 		return nil, status.Error(codes.Unavailable, "simulated failure")
 	}
+	s.mu.Unlock()
 	title := strings.TrimSpace(req.GetTitle())
 	if title == "" {
 		return nil, status.Error(codes.InvalidArgument, "title is required")
