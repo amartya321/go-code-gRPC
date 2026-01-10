@@ -11,12 +11,16 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/credentials/insecure"
+	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/status"
 	"google.golang.org/grpc/test/bufconn"
 )
 
 const bufSize = 1024 * 1024
 
+func ctxWithAuth(token string) context.Context {
+	return metadata.NewOutgoingContext(context.Background(), metadata.Pairs("authorization", "Bearer "+token))
+}
 func newBufconnClient(t *testing.T) (taskv1.TaskServiceClient, func()) {
 	t.Helper()
 
@@ -24,7 +28,7 @@ func newBufconnClient(t *testing.T) (taskv1.TaskServiceClient, func()) {
 
 	svc := NewTaskServiceServer()
 
-	grpcServer := grpc.NewServer()
+	grpcServer := grpc.NewServer(grpc.UnaryInterceptor(authUnaryInterceptor("devtoken")))
 	taskv1.RegisterTaskServiceServer(grpcServer, svc)
 
 	go func() {
@@ -54,12 +58,49 @@ func newBufconnClient(t *testing.T) (taskv1.TaskServiceClient, func()) {
 	return taskv1.NewTaskServiceClient(conn), cleanup
 }
 
+func newBufconnClientWithServer(t *testing.T) (taskv1.TaskServiceClient, *TaskServiceServer, func()) {
+	t.Helper()
+
+	lis := bufconn.Listen(bufSize)
+
+	svc := NewTaskServiceServer()
+
+	grpcServer := grpc.NewServer(grpc.UnaryInterceptor(authUnaryInterceptor("devtoken")))
+	taskv1.RegisterTaskServiceServer(grpcServer, svc)
+
+	go func() {
+		_ = grpcServer.Serve(lis)
+	}()
+
+	dialer := func(context.Context, string) (net.Conn, error) {
+		return lis.Dial()
+	}
+
+	conn, err := grpc.DialContext(
+		ctxWithAuth("devtoken"),
+		"bufnet",
+		grpc.WithContextDialer(dialer),
+		grpc.WithTransportCredentials(insecure.NewCredentials()),
+	)
+	if err != nil {
+		t.Fatalf("DialContext(bufnet) failed: %v", err)
+	}
+
+	cleanup := func() {
+		_ = conn.Close()
+		grpcServer.Stop()
+		_ = lis.Close()
+	}
+
+	return taskv1.NewTaskServiceClient(conn), svc, cleanup
+}
+
 func TestTaskService_CreateThenGet(t *testing.T) {
 	client, cleanup := newBufconnClient(t)
 	defer cleanup()
 
 	// 1) Create
-	createResp, err := client.CreateTask(context.Background(), &taskv1.CreateTaskRequest{
+	createResp, err := client.CreateTask(ctxWithAuth("devtoken"), &taskv1.CreateTaskRequest{
 		Title:       "buy milk",
 		Description: "tonight",
 	})
@@ -76,7 +117,7 @@ func TestTaskService_CreateThenGet(t *testing.T) {
 	}
 
 	// 2) Get
-	got, err := client.GetTask(context.Background(), &taskv1.GetTaskRequest{
+	got, err := client.GetTask(ctxWithAuth("devtoken"), &taskv1.GetTaskRequest{
 		TaskId: created.GetTaskId(),
 	})
 	if err != nil {
@@ -95,7 +136,7 @@ func TestTaskService_Get_NotFound(t *testing.T) {
 	client, cleanup := newBufconnClient(t)
 	defer cleanup()
 
-	_, err := client.GetTask(context.Background(), &taskv1.GetTaskRequest{
+	_, err := client.GetTask(ctxWithAuth("devtoken"), &taskv1.GetTaskRequest{
 		TaskId: "does-not-exist",
 	})
 
@@ -120,7 +161,7 @@ func TestTaskService_List_Pagination(t *testing.T) {
 	// Create 5 tasks in order.
 	var ids []string
 	for i := 1; i <= 5; i++ {
-		resp, err := client.CreateTask(context.Background(), &taskv1.CreateTaskRequest{
+		resp, err := client.CreateTask(ctxWithAuth("devtoken"), &taskv1.CreateTaskRequest{
 			Title: "t" + strconv.Itoa(i),
 		})
 		if err != nil {
@@ -130,7 +171,7 @@ func TestTaskService_List_Pagination(t *testing.T) {
 	}
 
 	// Page 1: size 2
-	page1, err := client.ListTasks(context.Background(), &taskv1.ListTasksRequest{
+	page1, err := client.ListTasks(ctxWithAuth("devtoken"), &taskv1.ListTasksRequest{
 		PageSize:  2,
 		PageToken: "",
 	})
@@ -148,7 +189,7 @@ func TestTaskService_List_Pagination(t *testing.T) {
 	}
 
 	// Page 2: size 2
-	page2, err := client.ListTasks(context.Background(), &taskv1.ListTasksRequest{
+	page2, err := client.ListTasks(ctxWithAuth("devtoken"), &taskv1.ListTasksRequest{
 		PageSize:  2,
 		PageToken: page1.GetNextPageToken(),
 	})
@@ -166,7 +207,7 @@ func TestTaskService_List_Pagination(t *testing.T) {
 	}
 
 	// Page 3: size 2 (should contain last 1)
-	page3, err := client.ListTasks(context.Background(), &taskv1.ListTasksRequest{
+	page3, err := client.ListTasks(ctxWithAuth("devtoken"), &taskv1.ListTasksRequest{
 		PageSize:  2,
 		PageToken: page2.GetNextPageToken(),
 	})
@@ -207,7 +248,7 @@ func TestTaskService_Create_InvalidArgument(t *testing.T) {
 	for _, tc := range cases {
 		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
-			_, err := client.CreateTask(context.Background(), tc.req)
+			_, err := client.CreateTask(ctxWithAuth("devtoken"), tc.req)
 			if err == nil {
 				t.Fatalf("expected error, got nil")
 			}
@@ -240,7 +281,7 @@ func TestTaskService_Get_InvalidArgument(t *testing.T) {
 	for _, tc := range cases {
 		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
-			_, err := client.GetTask(context.Background(), tc.req)
+			_, err := client.GetTask(ctxWithAuth("devtoken"), tc.req)
 			if err == nil {
 				t.Fatalf("expected error, got nil")
 			}
@@ -275,7 +316,7 @@ func TestTaskService_List_InvalidArgument(t *testing.T) {
 	for _, tc := range cases {
 		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
-			_, err := client.ListTasks(context.Background(), tc.req)
+			_, err := client.ListTasks(ctxWithAuth("devtoken"), tc.req)
 			if err == nil {
 				t.Fatalf("expected error, got nil")
 			}
@@ -308,7 +349,7 @@ func TestTaskService_CreateWithId_InvalidArgument(t *testing.T) {
 	for _, tc := range cases {
 		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
-			_, err := client.CreateTaskWithId(context.Background(), tc.req)
+			_, err := client.CreateTaskWithId(ctxWithAuth("devtoken"), tc.req)
 			if err == nil {
 				t.Fatalf("expected error, got nil")
 			}
@@ -322,7 +363,7 @@ func TestTaskService_CreateWithId_InvalidArgument(t *testing.T) {
 func TestTaskService_CreateWithIdThenCreatewithId_AlreadyExists(t *testing.T) {
 	client, cleanup := newBufconnClient(t)
 	defer cleanup()
-	_, err := client.CreateTaskWithId(context.Background(), &taskv1.CreateTaskWithIdRequest{
+	_, err := client.CreateTaskWithId(ctxWithAuth("devtoken"), &taskv1.CreateTaskWithIdRequest{
 		TaskId:      "task-123",
 		Title:       "Test Task",
 		Description: "This is a test task",
@@ -330,7 +371,7 @@ func TestTaskService_CreateWithIdThenCreatewithId_AlreadyExists(t *testing.T) {
 	if err != nil {
 		t.Fatalf("CreateTaskWithId failed: %v", err)
 	}
-	_, err = client.CreateTaskWithId(context.Background(), &taskv1.CreateTaskWithIdRequest{
+	_, err = client.CreateTaskWithId(ctxWithAuth("devtoken"), &taskv1.CreateTaskWithIdRequest{
 		TaskId:      "task-123",
 		Title:       "Another Task",
 		Description: "This task should fail",
@@ -345,5 +386,93 @@ func TestTaskService_CreateWithIdThenCreatewithId_AlreadyExists(t *testing.T) {
 	}
 	if st.Code() != codes.AlreadyExists {
 		t.Fatalf("expected AlreadyExists, got %v", st.Code())
+	}
+}
+
+func TestTaskService_CreateTask_Unauthenticated(t *testing.T) {
+	client, cleanup := newBufconnClient(t)
+	defer cleanup()
+	_, err := client.CreateTask(context.Background(), &taskv1.CreateTaskRequest{
+		Title:       "buy milk",
+		Description: "tonight",
+	})
+	if err == nil {
+		t.Fatalf("expected error, got nil")
+	}
+	st, ok := status.FromError(err)
+	if !ok {
+		t.Fatalf("expected gRPC status error")
+	}
+	if st.Code() != codes.Unauthenticated {
+		t.Fatalf("expected Unauthenticated, got %v", st.Code())
+	}
+}
+
+func TestTaskService_CreateTask_PermissionDenied(t *testing.T) {
+	client, cleanup := newBufconnClient(t)
+	defer cleanup()
+	_, err := client.CreateTask(ctxWithAuth("something"), &taskv1.CreateTaskRequest{
+		Title:       "buy milk",
+		Description: "tonight",
+	})
+	if err == nil {
+		t.Fatalf("expected error, got nil")
+	}
+	st, ok := status.FromError(err)
+	if !ok {
+		t.Fatalf("expected gRPC status error")
+	}
+	if st.Code() != codes.PermissionDenied {
+		t.Fatalf("expected PermissionDenied, got %v", st.Code())
+	}
+}
+
+func TestTaskService_CreateTask_SimulatedFailure(t *testing.T) {
+	client, server, cleanup := newBufconnClientWithServer(t)
+	defer cleanup()
+	server.FailNextUnavailable()
+	_, err := client.CreateTask(ctxWithAuth("devtoken"), &taskv1.CreateTaskRequest{
+		Title:       "buy milk",
+		Description: "tonight",
+	})
+	if err == nil {
+		t.Fatalf("expected error, got nil")
+	}
+	st, ok := status.FromError(err)
+	if !ok {
+		t.Fatalf("expected gRPC status error")
+	}
+	if st.Code() != codes.Unavailable {
+		t.Fatalf("expected Unavailable, got %v", st.Code())
+	}
+}
+func callWithRetry(ctx context.Context, attempts int, fn func(context.Context) error) error {
+	var err error
+	for i := 0; i < attempts; i++ {
+		err = fn(ctx)
+		if err == nil {
+			return nil
+		}
+		if status.Code(err) == codes.Unavailable {
+			continue
+		} else {
+			return err
+		}
+	}
+	return err
+}
+func TestTaskService_CreateTask_RetrySucceed(t *testing.T) {
+	client, server, cleanup := newBufconnClientWithServer(t)
+	defer cleanup()
+	server.FailNextUnavailable()
+	err := callWithRetry(ctxWithAuth("devtoken"), 3, func(ctx context.Context) error {
+		_, err := client.CreateTask(ctx, &taskv1.CreateTaskRequest{
+			Title:       "buy milk",
+			Description: "tonight",
+		})
+		return err
+	})
+	if err != nil {
+		t.Fatalf("expected no error after retry, got %v", err)
 	}
 }

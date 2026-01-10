@@ -50,6 +50,14 @@ type TaskServiceServer struct {
 	mu        sync.RWMutex
 	taskMap   map[string]*taskv1.Task
 	taskSlice []*taskv1.Task
+	failNext  bool
+}
+
+func (s *TaskServiceServer) FailNextUnavailable() {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.failNext = true
+
 }
 
 func NewTaskServiceServer() *TaskServiceServer {
@@ -60,6 +68,12 @@ func NewTaskServiceServer() *TaskServiceServer {
 }
 
 func (s *TaskServiceServer) CreateTask(ctx context.Context, req *taskv1.CreateTaskRequest) (res *taskv1.CreateTaskResponse, err error) {
+	if s.failNext {
+		s.mu.Lock()
+		s.failNext = false
+		s.mu.Unlock()
+		return nil, status.Error(codes.Unavailable, "simulated failure")
+	}
 	title := strings.TrimSpace(req.GetTitle())
 	if title == "" {
 		return nil, status.Error(codes.InvalidArgument, "title is required")
@@ -172,7 +186,7 @@ func main() {
 		log.Fatalf("listen: %v", err)
 	}
 
-	grpcServer := grpc.NewServer()
+	grpcServer := grpc.NewServer(grpc.UnaryInterceptor(authUnaryInterceptor("devtoken")))
 	taskv1.RegisterTaskServiceServer(grpcServer, s)
 
 	log.Println("gRPC server listening on :50051")
