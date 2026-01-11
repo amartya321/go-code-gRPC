@@ -106,6 +106,29 @@ func runWatch(ctx context.Context, c taskv1.TaskServiceClient, args []string) er
 	}
 }
 
+func runBulkCreate(ctx context.Context, c taskv1.TaskServiceClient, args []string) error {
+	if len(args) <= 1 {
+		return fmt.Errorf("at least two tasks are required for bulk create")
+	}
+	stream, err := c.BulkCreate(ctx)
+	if err != nil {
+		return err
+	}
+	for _, title := range args {
+		err := stream.Send(&taskv1.CreateTaskRequest{Title: title})
+		if err != nil {
+			return err
+		}
+	}
+	resp, err := stream.CloseAndRecv()
+	if err != nil {
+		return err
+	}
+	log.Printf("Bulk Created %d Tasks. IDs: %v", resp.GetCreatedCount(), resp.GetTaskIds())
+	return nil
+
+}
+
 func main() {
 	var cmd string
 	var args []string
@@ -137,6 +160,8 @@ func main() {
 		err = runList(ctx, c, args)
 	case "watch":
 		err = runWatch(ctx, c, args)
+	case "bulk-create":
+		err = runBulkCreate(ctx, c, args)
 	default:
 		log.Printf("Unknown command: %s. Usage: taskclient create <title> [description] | taskclient get <task_id>", cmd)
 		return
