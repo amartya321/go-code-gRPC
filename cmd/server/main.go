@@ -253,6 +253,25 @@ func (s *TaskServiceServer) BulkCreate(stream taskv1.TaskService_BulkCreateServe
 
 }
 
+func (s *TaskServiceServer) TaskConsole(stream taskv1.TaskService_TaskConsoleServer) error {
+	for {
+		msg, err := stream.Recv()
+		if err == io.EOF {
+			return nil
+		}
+		if err != nil {
+			return err
+		}
+		response_message := &taskv1.ConsoleMessage{
+			Text: "ack: " + msg.GetText(),
+		}
+		err = stream.Send(response_message)
+		if err != nil {
+			return err
+		}
+	}
+}
+
 func main() {
 
 	s := NewTaskServiceServer()
