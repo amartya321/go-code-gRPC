@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	taskv1 "grpc-lab/gen/task/v1"
+	"io"
 	"log"
 	"os"
 	"strconv"
@@ -14,6 +15,16 @@ import (
 	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/grpc/status"
 )
+
+type tokenCreds string
+
+func (t tokenCreds) GetRequestMetadata(ctx context.Context, uri ...string) (map[string]string, error) {
+	return map[string]string{"authorization": "Bearer " + string(t)}, nil
+}
+
+func (t tokenCreds) RequireTransportSecurity() bool {
+	return false
+}
 
 func runCreate(ctx context.Context, c taskv1.TaskServiceClient, args []string) error {
 	if len(args) < 1 {
@@ -75,6 +86,26 @@ func runList(ctx context.Context, c taskv1.TaskServiceClient, args []string) err
 
 }
 
+func runWatch(ctx context.Context, c taskv1.TaskServiceClient, args []string) error {
+	if len(args) != 1 {
+		return fmt.Errorf("task id is required")
+	}
+	stream, err := c.WatchTask(ctx, &taskv1.WatchTaskRequest{TaskId: args[0]})
+	if err != nil {
+		return err
+	}
+	for {
+		event, err := stream.Recv()
+		if err == io.EOF {
+			return nil
+		}
+		if err != nil {
+			return err
+		}
+		log.Printf("Task Event: status=%v at=%s message=%s", event.GetStatus().String(), event.GetAt().AsTime().String(), event.GetMessage())
+	}
+}
+
 func main() {
 	var cmd string
 	var args []string
@@ -87,7 +118,7 @@ func main() {
 		args = os.Args[2:]
 	}
 
-	conn, err := grpc.Dial("localhost:50051", grpc.WithTransportCredentials(insecure.NewCredentials()))
+	conn, err := grpc.Dial("localhost:50051", grpc.WithTransportCredentials(insecure.NewCredentials()), grpc.WithPerRPCCredentials(tokenCreds("devtoken")))
 	if err != nil {
 		log.Fatalf("dial: %v", err)
 		return
@@ -104,6 +135,8 @@ func main() {
 		err = runGet(ctx, c, args)
 	case "list":
 		err = runList(ctx, c, args)
+	case "watch":
+		err = runWatch(ctx, c, args)
 	default:
 		log.Printf("Unknown command: %s. Usage: taskclient create <title> [description] | taskclient get <task_id>", cmd)
 		return

@@ -178,6 +178,46 @@ func (s *TaskServiceServer) ListTasks(ctx context.Context, req *taskv1.ListTasks
 
 }
 
+func (s *TaskServiceServer) WatchTask(req *taskv1.WatchTaskRequest, stream taskv1.TaskService_WatchTaskServer) error {
+	task_id := strings.TrimSpace(req.GetTaskId())
+	if task_id == "" {
+		return status.Error(codes.InvalidArgument, "task_id is required")
+	}
+	s.mu.RLock()
+	_, ok := s.taskMap[task_id]
+	s.mu.RUnlock()
+	if !ok {
+		return status.Error(codes.NotFound, "task not found with id "+task_id)
+	}
+
+	for i := 0; i < 3; i++ {
+
+		select {
+		case <-stream.Context().Done():
+			return stream.Context().Err()
+		default:
+		}
+
+		status := taskv1.TaskStatus_TASK_STATUS_PENDING
+		switch i {
+		case 1:
+			status = taskv1.TaskStatus_TASK_STATUS_RUNNING
+		case 2:
+			status = taskv1.TaskStatus_TASK_STATUS_COMPLETED
+		}
+
+		err := stream.Send(&taskv1.TaskEvent{
+			Status: status,
+			At:     timestamppb.New(time.Now()),
+		})
+		if err != nil {
+			return err
+		}
+		time.Sleep(200 * time.Millisecond)
+	}
+	return nil
+}
+
 func main() {
 
 	s := NewTaskServiceServer()
