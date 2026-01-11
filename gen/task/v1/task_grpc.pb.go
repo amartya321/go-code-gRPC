@@ -25,6 +25,7 @@ const (
 	TaskService_CreateTaskWithId_FullMethodName = "/task.v1.TaskService/CreateTaskWithId"
 	TaskService_WatchTask_FullMethodName        = "/task.v1.TaskService/WatchTask"
 	TaskService_BulkCreate_FullMethodName       = "/task.v1.TaskService/BulkCreate"
+	TaskService_TaskConsole_FullMethodName      = "/task.v1.TaskService/TaskConsole"
 )
 
 // TaskServiceClient is the client API for TaskService service.
@@ -37,6 +38,7 @@ type TaskServiceClient interface {
 	CreateTaskWithId(ctx context.Context, in *CreateTaskWithIdRequest, opts ...grpc.CallOption) (*CreateTaskResponse, error)
 	WatchTask(ctx context.Context, in *WatchTaskRequest, opts ...grpc.CallOption) (grpc.ServerStreamingClient[TaskEvent], error)
 	BulkCreate(ctx context.Context, opts ...grpc.CallOption) (grpc.ClientStreamingClient[CreateTaskRequest, BulkCreateResponse], error)
+	TaskConsole(ctx context.Context, opts ...grpc.CallOption) (grpc.BidiStreamingClient[ConsoleMessage, ConsoleMessage], error)
 }
 
 type taskServiceClient struct {
@@ -119,6 +121,19 @@ func (c *taskServiceClient) BulkCreate(ctx context.Context, opts ...grpc.CallOpt
 // This type alias is provided for backwards compatibility with existing code that references the prior non-generic stream type by name.
 type TaskService_BulkCreateClient = grpc.ClientStreamingClient[CreateTaskRequest, BulkCreateResponse]
 
+func (c *taskServiceClient) TaskConsole(ctx context.Context, opts ...grpc.CallOption) (grpc.BidiStreamingClient[ConsoleMessage, ConsoleMessage], error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	stream, err := c.cc.NewStream(ctx, &TaskService_ServiceDesc.Streams[2], TaskService_TaskConsole_FullMethodName, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	x := &grpc.GenericClientStream[ConsoleMessage, ConsoleMessage]{ClientStream: stream}
+	return x, nil
+}
+
+// This type alias is provided for backwards compatibility with existing code that references the prior non-generic stream type by name.
+type TaskService_TaskConsoleClient = grpc.BidiStreamingClient[ConsoleMessage, ConsoleMessage]
+
 // TaskServiceServer is the server API for TaskService service.
 // All implementations must embed UnimplementedTaskServiceServer
 // for forward compatibility.
@@ -129,6 +144,7 @@ type TaskServiceServer interface {
 	CreateTaskWithId(context.Context, *CreateTaskWithIdRequest) (*CreateTaskResponse, error)
 	WatchTask(*WatchTaskRequest, grpc.ServerStreamingServer[TaskEvent]) error
 	BulkCreate(grpc.ClientStreamingServer[CreateTaskRequest, BulkCreateResponse]) error
+	TaskConsole(grpc.BidiStreamingServer[ConsoleMessage, ConsoleMessage]) error
 	mustEmbedUnimplementedTaskServiceServer()
 }
 
@@ -156,6 +172,9 @@ func (UnimplementedTaskServiceServer) WatchTask(*WatchTaskRequest, grpc.ServerSt
 }
 func (UnimplementedTaskServiceServer) BulkCreate(grpc.ClientStreamingServer[CreateTaskRequest, BulkCreateResponse]) error {
 	return status.Error(codes.Unimplemented, "method BulkCreate not implemented")
+}
+func (UnimplementedTaskServiceServer) TaskConsole(grpc.BidiStreamingServer[ConsoleMessage, ConsoleMessage]) error {
+	return status.Error(codes.Unimplemented, "method TaskConsole not implemented")
 }
 func (UnimplementedTaskServiceServer) mustEmbedUnimplementedTaskServiceServer() {}
 func (UnimplementedTaskServiceServer) testEmbeddedByValue()                     {}
@@ -268,6 +287,13 @@ func _TaskService_BulkCreate_Handler(srv interface{}, stream grpc.ServerStream) 
 // This type alias is provided for backwards compatibility with existing code that references the prior non-generic stream type by name.
 type TaskService_BulkCreateServer = grpc.ClientStreamingServer[CreateTaskRequest, BulkCreateResponse]
 
+func _TaskService_TaskConsole_Handler(srv interface{}, stream grpc.ServerStream) error {
+	return srv.(TaskServiceServer).TaskConsole(&grpc.GenericServerStream[ConsoleMessage, ConsoleMessage]{ServerStream: stream})
+}
+
+// This type alias is provided for backwards compatibility with existing code that references the prior non-generic stream type by name.
+type TaskService_TaskConsoleServer = grpc.BidiStreamingServer[ConsoleMessage, ConsoleMessage]
+
 // TaskService_ServiceDesc is the grpc.ServiceDesc for TaskService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -301,6 +327,12 @@ var TaskService_ServiceDesc = grpc.ServiceDesc{
 		{
 			StreamName:    "BulkCreate",
 			Handler:       _TaskService_BulkCreate_Handler,
+			ClientStreams: true,
+		},
+		{
+			StreamName:    "TaskConsole",
+			Handler:       _TaskService_TaskConsole_Handler,
+			ServerStreams: true,
 			ClientStreams: true,
 		},
 	},

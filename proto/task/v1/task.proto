@@ -67,6 +67,10 @@ message BulkCreateResponse{
     repeated string task_ids = 2;
 }
 
+message ConsoleMessage {
+  string text = 1;
+}
+
 service TaskService{
     rpc CreateTask(CreateTaskRequest) returns (CreateTaskResponse);
     rpc GetTask(GetTaskRequest) returns (Task);
@@ -74,4 +78,5 @@ service TaskService{
     rpc CreateTaskWithId(CreateTaskWithIdRequest) returns (CreateTaskResponse);
     rpc WatchTask(WatchTaskRequest) returns (stream TaskEvent);
     rpc BulkCreate(stream CreateTaskRequest) returns (BulkCreateResponse);
+    rpc TaskConsole(stream ConsoleMessage) returns (stream ConsoleMessage);
 }
