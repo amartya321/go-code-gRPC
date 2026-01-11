@@ -129,6 +129,54 @@ func runBulkCreate(ctx context.Context, c taskv1.TaskServiceClient, args []strin
 
 }
 
+func runTaskConsole(ctx context.Context, c taskv1.TaskServiceClient, args []string) error {
+	stream, err := c.TaskConsole(ctx)
+	if err != nil {
+		return err
+	}
+	errCh := make(chan error, 1)
+
+	go func() {
+		for {
+			msg, err := stream.Recv()
+			if err == io.EOF {
+				errCh <- nil
+				return
+			}
+			if err != nil {
+				errCh <- err
+				return
+			}
+			log.Printf("Received from server: %s", msg.GetText())
+		}
+	}()
+
+	if err := stream.Send(&taskv1.ConsoleMessage{Text: "Hello, Server!"}); err != nil {
+		return err
+	}
+	time.Sleep(200 * time.Millisecond)
+
+	if err := stream.Send(&taskv1.ConsoleMessage{Text: "How are you"}); err != nil {
+		return err
+	}
+	time.Sleep(200 * time.Millisecond)
+	if err := stream.Send(&taskv1.ConsoleMessage{Text: "Was thinking about you"}); err != nil {
+		return err
+	}
+	time.Sleep(200 * time.Millisecond)
+	err = stream.CloseSend()
+	if err != nil {
+		return err
+	}
+
+	// Wait for the receiver goroutine to finish: read from errCh if error (non-nil) return it
+	err = <-errCh
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
 func main() {
 	var cmd string
 	var args []string
@@ -162,6 +210,8 @@ func main() {
 		err = runWatch(ctx, c, args)
 	case "bulk-create":
 		err = runBulkCreate(ctx, c, args)
+	case "console":
+		err = runTaskConsole(ctx, c, args)
 	default:
 		log.Printf("Unknown command: %s. Usage: taskclient create <title> [description] | taskclient get <task_id>", cmd)
 		return

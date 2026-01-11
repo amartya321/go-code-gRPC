@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"io"
 	"net"
 	"strconv"
 	"testing"
@@ -508,5 +509,39 @@ func TestTaskService_BulkCreate(t *testing.T) {
 	}
 	if len(resp.GetTaskIds()) != len(titles) {
 		t.Fatalf("expected %d TaskIds, got %d", len(titles), len(resp.GetTaskIds()))
+	}
+}
+
+func TestTaskService_TaskConsole(t *testing.T) {
+	client, cleanup := newBufconnClient(t)
+	defer cleanup()
+	stream, err := client.TaskConsole(ctxWithAuth("devtoken"))
+	if err != nil {
+		t.Fatalf("TaskConsole failed to start: %v", err)
+	}
+	err = stream.Send(&taskv1.ConsoleMessage{Text: "X"})
+	if err != nil {
+		t.Fatalf("TaskConsole Send failed: %v", err)
+	}
+	resp, err := stream.Recv()
+	if err != nil {
+		t.Fatalf("TaskConsole Recv failed: %v", err)
+	}
+	expected := "ack: X"
+	if resp.GetText() != expected {
+		t.Fatalf("expected response %q, got %q", expected, resp.GetText())
+	}
+	err = stream.CloseSend()
+	if err != nil {
+		t.Fatalf("TaskConsole CloseSend failed: %v", err)
+	}
+	for {
+		_, err := stream.Recv()
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			t.Fatalf("TaskConsole Recv after CloseSend failed: %v", err)
+		}
 	}
 }
