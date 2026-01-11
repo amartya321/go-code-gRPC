@@ -23,6 +23,7 @@ const (
 	TaskService_GetTask_FullMethodName          = "/task.v1.TaskService/GetTask"
 	TaskService_ListTasks_FullMethodName        = "/task.v1.TaskService/ListTasks"
 	TaskService_CreateTaskWithId_FullMethodName = "/task.v1.TaskService/CreateTaskWithId"
+	TaskService_WatchTask_FullMethodName        = "/task.v1.TaskService/WatchTask"
 )
 
 // TaskServiceClient is the client API for TaskService service.
@@ -33,6 +34,7 @@ type TaskServiceClient interface {
 	GetTask(ctx context.Context, in *GetTaskRequest, opts ...grpc.CallOption) (*Task, error)
 	ListTasks(ctx context.Context, in *ListTasksRequest, opts ...grpc.CallOption) (*ListTasksResponse, error)
 	CreateTaskWithId(ctx context.Context, in *CreateTaskWithIdRequest, opts ...grpc.CallOption) (*CreateTaskResponse, error)
+	WatchTask(ctx context.Context, in *WatchTaskRequest, opts ...grpc.CallOption) (grpc.ServerStreamingClient[TaskEvent], error)
 }
 
 type taskServiceClient struct {
@@ -83,6 +85,25 @@ func (c *taskServiceClient) CreateTaskWithId(ctx context.Context, in *CreateTask
 	return out, nil
 }
 
+func (c *taskServiceClient) WatchTask(ctx context.Context, in *WatchTaskRequest, opts ...grpc.CallOption) (grpc.ServerStreamingClient[TaskEvent], error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	stream, err := c.cc.NewStream(ctx, &TaskService_ServiceDesc.Streams[0], TaskService_WatchTask_FullMethodName, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	x := &grpc.GenericClientStream[WatchTaskRequest, TaskEvent]{ClientStream: stream}
+	if err := x.ClientStream.SendMsg(in); err != nil {
+		return nil, err
+	}
+	if err := x.ClientStream.CloseSend(); err != nil {
+		return nil, err
+	}
+	return x, nil
+}
+
+// This type alias is provided for backwards compatibility with existing code that references the prior non-generic stream type by name.
+type TaskService_WatchTaskClient = grpc.ServerStreamingClient[TaskEvent]
+
 // TaskServiceServer is the server API for TaskService service.
 // All implementations must embed UnimplementedTaskServiceServer
 // for forward compatibility.
@@ -91,6 +112,7 @@ type TaskServiceServer interface {
 	GetTask(context.Context, *GetTaskRequest) (*Task, error)
 	ListTasks(context.Context, *ListTasksRequest) (*ListTasksResponse, error)
 	CreateTaskWithId(context.Context, *CreateTaskWithIdRequest) (*CreateTaskResponse, error)
+	WatchTask(*WatchTaskRequest, grpc.ServerStreamingServer[TaskEvent]) error
 	mustEmbedUnimplementedTaskServiceServer()
 }
 
@@ -112,6 +134,9 @@ func (UnimplementedTaskServiceServer) ListTasks(context.Context, *ListTasksReque
 }
 func (UnimplementedTaskServiceServer) CreateTaskWithId(context.Context, *CreateTaskWithIdRequest) (*CreateTaskResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method CreateTaskWithId not implemented")
+}
+func (UnimplementedTaskServiceServer) WatchTask(*WatchTaskRequest, grpc.ServerStreamingServer[TaskEvent]) error {
+	return status.Error(codes.Unimplemented, "method WatchTask not implemented")
 }
 func (UnimplementedTaskServiceServer) mustEmbedUnimplementedTaskServiceServer() {}
 func (UnimplementedTaskServiceServer) testEmbeddedByValue()                     {}
@@ -206,6 +231,17 @@ func _TaskService_CreateTaskWithId_Handler(srv interface{}, ctx context.Context,
 	return interceptor(ctx, in, info, handler)
 }
 
+func _TaskService_WatchTask_Handler(srv interface{}, stream grpc.ServerStream) error {
+	m := new(WatchTaskRequest)
+	if err := stream.RecvMsg(m); err != nil {
+		return err
+	}
+	return srv.(TaskServiceServer).WatchTask(m, &grpc.GenericServerStream[WatchTaskRequest, TaskEvent]{ServerStream: stream})
+}
+
+// This type alias is provided for backwards compatibility with existing code that references the prior non-generic stream type by name.
+type TaskService_WatchTaskServer = grpc.ServerStreamingServer[TaskEvent]
+
 // TaskService_ServiceDesc is the grpc.ServiceDesc for TaskService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -230,6 +266,12 @@ var TaskService_ServiceDesc = grpc.ServiceDesc{
 			Handler:    _TaskService_CreateTaskWithId_Handler,
 		},
 	},
-	Streams:  []grpc.StreamDesc{},
+	Streams: []grpc.StreamDesc{
+		{
+			StreamName:    "WatchTask",
+			Handler:       _TaskService_WatchTask_Handler,
+			ServerStreams: true,
+		},
+	},
 	Metadata: "task/v1/task.proto",
 }

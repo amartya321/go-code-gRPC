@@ -52,9 +52,20 @@ message ListTasksResponse{
     string next_page_token = 2;
 }
 
+message WatchTaskRequest{
+    string task_id = 1;
+}
+
+message TaskEvent{
+    TaskStatus status = 1;
+    google.protobuf.Timestamp at = 2;
+    string message = 3;
+}
+
 service TaskService{
     rpc CreateTask(CreateTaskRequest) returns (CreateTaskResponse);
     rpc GetTask(GetTaskRequest) returns (Task);
     rpc ListTasks(ListTasksRequest) returns (ListTasksResponse);
     rpc CreateTaskWithId(CreateTaskWithIdRequest) returns (CreateTaskResponse);
+    rpc WatchTask(WatchTaskRequest) returns (stream TaskEvent);
 }
