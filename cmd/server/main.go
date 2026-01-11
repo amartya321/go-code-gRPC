@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"io"
 	"log"
 	"net"
 	"strconv"
@@ -214,6 +215,42 @@ func (s *TaskServiceServer) WatchTask(req *taskv1.WatchTaskRequest, stream taskv
 		}
 	}
 	return nil
+}
+
+func (s *TaskServiceServer) BulkCreate(stream taskv1.TaskService_BulkCreateServer) error {
+	ids := []string{}
+	for {
+		req, err := stream.Recv()
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			return err
+		}
+		title := strings.TrimSpace(req.GetTitle())
+		if title == "" {
+			return status.Error(codes.InvalidArgument, "title is required")
+		}
+
+		id := uuid.New()
+		now := timestamppb.New(time.Now())
+		task := &taskv1.Task{
+			TaskId:      id.String(),
+			Title:       title,
+			Description: strings.TrimSpace(req.GetDescription()),
+			CreatedAt:   now,
+			UpdatedAt:   now,
+			Status:      taskv1.TaskStatus_TASK_STATUS_PENDING,
+		}
+		s.mu.Lock()
+		ids = append(ids, task.TaskId)
+		s.taskMap[task.TaskId] = task
+		s.taskSlice = append(s.taskSlice, task)
+		s.mu.Unlock()
+	}
+
+	return stream.SendAndClose(&taskv1.BulkCreateResponse{CreatedCount: int32(len(ids)), TaskIds: ids})
+
 }
 
 func main() {
