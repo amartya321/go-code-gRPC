@@ -191,13 +191,12 @@ func (s *TaskServiceServer) WatchTask(req *taskv1.WatchTaskRequest, stream taskv
 	}
 
 	for i := 0; i < 3; i++ {
-
 		select {
 		case <-stream.Context().Done():
 			return stream.Context().Err()
 		default:
 		}
-
+		time.Sleep(200 * time.Millisecond)
 		status := taskv1.TaskStatus_TASK_STATUS_PENDING
 		switch i {
 		case 1:
@@ -213,7 +212,6 @@ func (s *TaskServiceServer) WatchTask(req *taskv1.WatchTaskRequest, stream taskv
 		if err != nil {
 			return err
 		}
-		time.Sleep(200 * time.Millisecond)
 	}
 	return nil
 }
