@@ -484,3 +484,29 @@ func TestTaskService_CreateTask_NoRetryonInvalidArgument(t *testing.T) {
 		t.Fatalf("expected InvalidArgument, got %v", st.Code())
 	}
 }
+
+func TestTaskService_BulkCreate(t *testing.T) {
+	client, cleanup := newBufconnClient(t)
+	defer cleanup()
+	stream, err := client.BulkCreate(ctxWithAuth("devtoken"))
+	if err != nil {
+		t.Fatalf("BulkCreate failed to start: %v", err)
+	}
+	titles := []string{"task1", "task2", "task3"}
+	for _, title := range titles {
+		err := stream.Send(&taskv1.CreateTaskRequest{Title: title})
+		if err != nil {
+			t.Fatalf("BulkCreate Send failed: %v", err)
+		}
+	}
+	resp, err := stream.CloseAndRecv()
+	if err != nil {
+		t.Fatalf("BulkCreate CloseAndRecv failed: %v", err)
+	}
+	if resp.GetCreatedCount() != int32(len(titles)) {
+		t.Fatalf("expected CreatedCount %d, got %d", len(titles), resp.GetCreatedCount())
+	}
+	if len(resp.GetTaskIds()) != len(titles) {
+		t.Fatalf("expected %d TaskIds, got %d", len(titles), len(resp.GetTaskIds()))
+	}
+}
