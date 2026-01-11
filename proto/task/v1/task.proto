@@ -62,10 +62,16 @@ message TaskEvent{
     string message = 3;
 }
 
+message BulkCreateResponse{
+    int32 created_count = 1;
+    repeated string task_ids = 2;
+}
+
 service TaskService{
     rpc CreateTask(CreateTaskRequest) returns (CreateTaskResponse);
     rpc GetTask(GetTaskRequest) returns (Task);
     rpc ListTasks(ListTasksRequest) returns (ListTasksResponse);
     rpc CreateTaskWithId(CreateTaskWithIdRequest) returns (CreateTaskResponse);
     rpc WatchTask(WatchTaskRequest) returns (stream TaskEvent);
+    rpc BulkCreate(stream CreateTaskRequest) returns (BulkCreateResponse);
 }

@@ -572,6 +572,58 @@ func (x *TaskEvent) GetMessage() string {
 	return ""
 }
 
+type BulkCreateResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	CreatedCount  int32                  `protobuf:"varint,1,opt,name=created_count,json=createdCount,proto3" json:"created_count,omitempty"`
+	TaskIds       []string               `protobuf:"bytes,2,rep,name=task_ids,json=taskIds,proto3" json:"task_ids,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *BulkCreateResponse) Reset() {
+	*x = BulkCreateResponse{}
+	mi := &file_task_v1_task_proto_msgTypes[9]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *BulkCreateResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*BulkCreateResponse) ProtoMessage() {}
+
+func (x *BulkCreateResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_task_v1_task_proto_msgTypes[9]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use BulkCreateResponse.ProtoReflect.Descriptor instead.
+func (*BulkCreateResponse) Descriptor() ([]byte, []int) {
+	return file_task_v1_task_proto_rawDescGZIP(), []int{9}
+}
+
+func (x *BulkCreateResponse) GetCreatedCount() int32 {
+	if x != nil {
+		return x.CreatedCount
+	}
+	return 0
+}
+
+func (x *BulkCreateResponse) GetTaskIds() []string {
+	if x != nil {
+		return x.TaskIds
+	}
+	return nil
+}
+
 var File_task_v1_task_proto protoreflect.FileDescriptor
 
 const file_task_v1_task_proto_rawDesc = "" +
@@ -609,7 +661,10 @@ const file_task_v1_task_proto_rawDesc = "" +
 	"\tTaskEvent\x12+\n" +
 	"\x06status\x18\x01 \x01(\x0e2\x13.task.v1.TaskStatusR\x06status\x12*\n" +
 	"\x02at\x18\x02 \x01(\v2\x1a.google.protobuf.TimestampR\x02at\x12\x18\n" +
-	"\amessage\x18\x03 \x01(\tR\amessage*\xa8\x01\n" +
+	"\amessage\x18\x03 \x01(\tR\amessage\"T\n" +
+	"\x12BulkCreateResponse\x12#\n" +
+	"\rcreated_count\x18\x01 \x01(\x05R\fcreatedCount\x12\x19\n" +
+	"\btask_ids\x18\x02 \x03(\tR\ataskIds*\xa8\x01\n" +
 	"\n" +
 	"TaskStatus\x12\x1b\n" +
 	"\x17TASK_STATUS_UNSPECIFIED\x10\x00\x12\x17\n" +
@@ -617,14 +672,16 @@ const file_task_v1_task_proto_rawDesc = "" +
 	"\x13TASK_STATUS_RUNNING\x10\x02\x12\x19\n" +
 	"\x15TASK_STATUS_COMPLETED\x10\x03\x12\x16\n" +
 	"\x12TASK_STATUS_FAILED\x10\x04\x12\x18\n" +
-	"\x14TASK_STATUS_CANCELED\x10\x052\xdc\x02\n" +
+	"\x14TASK_STATUS_CANCELED\x10\x052\xa5\x03\n" +
 	"\vTaskService\x12E\n" +
 	"\n" +
 	"CreateTask\x12\x1a.task.v1.CreateTaskRequest\x1a\x1b.task.v1.CreateTaskResponse\x121\n" +
 	"\aGetTask\x12\x17.task.v1.GetTaskRequest\x1a\r.task.v1.Task\x12B\n" +
 	"\tListTasks\x12\x19.task.v1.ListTasksRequest\x1a\x1a.task.v1.ListTasksResponse\x12Q\n" +
 	"\x10CreateTaskWithId\x12 .task.v1.CreateTaskWithIdRequest\x1a\x1b.task.v1.CreateTaskResponse\x12<\n" +
-	"\tWatchTask\x12\x19.task.v1.WatchTaskRequest\x1a\x12.task.v1.TaskEvent0\x01B\x1dZ\x1bgrpc-lab/gen/task/v1;taskv1b\x06proto3"
+	"\tWatchTask\x12\x19.task.v1.WatchTaskRequest\x1a\x12.task.v1.TaskEvent0\x01\x12G\n" +
+	"\n" +
+	"BulkCreate\x12\x1a.task.v1.CreateTaskRequest\x1a\x1b.task.v1.BulkCreateResponse(\x01B\x1dZ\x1bgrpc-lab/gen/task/v1;taskv1b\x06proto3"
 
 var (
 	file_task_v1_task_proto_rawDescOnce sync.Once
@@ -639,7 +696,7 @@ func file_task_v1_task_proto_rawDescGZIP() []byte {
 }
 
 var file_task_v1_task_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
-var file_task_v1_task_proto_msgTypes = make([]protoimpl.MessageInfo, 9)
+var file_task_v1_task_proto_msgTypes = make([]protoimpl.MessageInfo, 10)
 var file_task_v1_task_proto_goTypes = []any{
 	(TaskStatus)(0),                 // 0: task.v1.TaskStatus
 	(*Task)(nil),                    // 1: task.v1.Task
@@ -651,28 +708,31 @@ var file_task_v1_task_proto_goTypes = []any{
 	(*ListTasksResponse)(nil),       // 7: task.v1.ListTasksResponse
 	(*WatchTaskRequest)(nil),        // 8: task.v1.WatchTaskRequest
 	(*TaskEvent)(nil),               // 9: task.v1.TaskEvent
-	(*timestamppb.Timestamp)(nil),   // 10: google.protobuf.Timestamp
+	(*BulkCreateResponse)(nil),      // 10: task.v1.BulkCreateResponse
+	(*timestamppb.Timestamp)(nil),   // 11: google.protobuf.Timestamp
 }
 var file_task_v1_task_proto_depIdxs = []int32{
 	0,  // 0: task.v1.Task.status:type_name -> task.v1.TaskStatus
-	10, // 1: task.v1.Task.created_at:type_name -> google.protobuf.Timestamp
-	10, // 2: task.v1.Task.updated_at:type_name -> google.protobuf.Timestamp
+	11, // 1: task.v1.Task.created_at:type_name -> google.protobuf.Timestamp
+	11, // 2: task.v1.Task.updated_at:type_name -> google.protobuf.Timestamp
 	1,  // 3: task.v1.CreateTaskResponse.task:type_name -> task.v1.Task
 	1,  // 4: task.v1.ListTasksResponse.tasks:type_name -> task.v1.Task
 	0,  // 5: task.v1.TaskEvent.status:type_name -> task.v1.TaskStatus
-	10, // 6: task.v1.TaskEvent.at:type_name -> google.protobuf.Timestamp
+	11, // 6: task.v1.TaskEvent.at:type_name -> google.protobuf.Timestamp
 	2,  // 7: task.v1.TaskService.CreateTask:input_type -> task.v1.CreateTaskRequest
 	5,  // 8: task.v1.TaskService.GetTask:input_type -> task.v1.GetTaskRequest
 	6,  // 9: task.v1.TaskService.ListTasks:input_type -> task.v1.ListTasksRequest
 	3,  // 10: task.v1.TaskService.CreateTaskWithId:input_type -> task.v1.CreateTaskWithIdRequest
 	8,  // 11: task.v1.TaskService.WatchTask:input_type -> task.v1.WatchTaskRequest
-	4,  // 12: task.v1.TaskService.CreateTask:output_type -> task.v1.CreateTaskResponse
-	1,  // 13: task.v1.TaskService.GetTask:output_type -> task.v1.Task
-	7,  // 14: task.v1.TaskService.ListTasks:output_type -> task.v1.ListTasksResponse
-	4,  // 15: task.v1.TaskService.CreateTaskWithId:output_type -> task.v1.CreateTaskResponse
-	9,  // 16: task.v1.TaskService.WatchTask:output_type -> task.v1.TaskEvent
-	12, // [12:17] is the sub-list for method output_type
-	7,  // [7:12] is the sub-list for method input_type
+	2,  // 12: task.v1.TaskService.BulkCreate:input_type -> task.v1.CreateTaskRequest
+	4,  // 13: task.v1.TaskService.CreateTask:output_type -> task.v1.CreateTaskResponse
+	1,  // 14: task.v1.TaskService.GetTask:output_type -> task.v1.Task
+	7,  // 15: task.v1.TaskService.ListTasks:output_type -> task.v1.ListTasksResponse
+	4,  // 16: task.v1.TaskService.CreateTaskWithId:output_type -> task.v1.CreateTaskResponse
+	9,  // 17: task.v1.TaskService.WatchTask:output_type -> task.v1.TaskEvent
+	10, // 18: task.v1.TaskService.BulkCreate:output_type -> task.v1.BulkCreateResponse
+	13, // [13:19] is the sub-list for method output_type
+	7,  // [7:13] is the sub-list for method input_type
 	7,  // [7:7] is the sub-list for extension type_name
 	7,  // [7:7] is the sub-list for extension extendee
 	0,  // [0:7] is the sub-list for field type_name
@@ -689,7 +749,7 @@ func file_task_v1_task_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_task_v1_task_proto_rawDesc), len(file_task_v1_task_proto_rawDesc)),
 			NumEnums:      1,
-			NumMessages:   9,
+			NumMessages:   10,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

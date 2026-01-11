@@ -24,6 +24,7 @@ const (
 	TaskService_ListTasks_FullMethodName        = "/task.v1.TaskService/ListTasks"
 	TaskService_CreateTaskWithId_FullMethodName = "/task.v1.TaskService/CreateTaskWithId"
 	TaskService_WatchTask_FullMethodName        = "/task.v1.TaskService/WatchTask"
+	TaskService_BulkCreate_FullMethodName       = "/task.v1.TaskService/BulkCreate"
 )
 
 // TaskServiceClient is the client API for TaskService service.
@@ -35,6 +36,7 @@ type TaskServiceClient interface {
 	ListTasks(ctx context.Context, in *ListTasksRequest, opts ...grpc.CallOption) (*ListTasksResponse, error)
 	CreateTaskWithId(ctx context.Context, in *CreateTaskWithIdRequest, opts ...grpc.CallOption) (*CreateTaskResponse, error)
 	WatchTask(ctx context.Context, in *WatchTaskRequest, opts ...grpc.CallOption) (grpc.ServerStreamingClient[TaskEvent], error)
+	BulkCreate(ctx context.Context, opts ...grpc.CallOption) (grpc.ClientStreamingClient[CreateTaskRequest, BulkCreateResponse], error)
 }
 
 type taskServiceClient struct {
@@ -104,6 +106,19 @@ func (c *taskServiceClient) WatchTask(ctx context.Context, in *WatchTaskRequest,
 // This type alias is provided for backwards compatibility with existing code that references the prior non-generic stream type by name.
 type TaskService_WatchTaskClient = grpc.ServerStreamingClient[TaskEvent]
 
+func (c *taskServiceClient) BulkCreate(ctx context.Context, opts ...grpc.CallOption) (grpc.ClientStreamingClient[CreateTaskRequest, BulkCreateResponse], error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	stream, err := c.cc.NewStream(ctx, &TaskService_ServiceDesc.Streams[1], TaskService_BulkCreate_FullMethodName, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	x := &grpc.GenericClientStream[CreateTaskRequest, BulkCreateResponse]{ClientStream: stream}
+	return x, nil
+}
+
+// This type alias is provided for backwards compatibility with existing code that references the prior non-generic stream type by name.
+type TaskService_BulkCreateClient = grpc.ClientStreamingClient[CreateTaskRequest, BulkCreateResponse]
+
 // TaskServiceServer is the server API for TaskService service.
 // All implementations must embed UnimplementedTaskServiceServer
 // for forward compatibility.
@@ -113,6 +128,7 @@ type TaskServiceServer interface {
 	ListTasks(context.Context, *ListTasksRequest) (*ListTasksResponse, error)
 	CreateTaskWithId(context.Context, *CreateTaskWithIdRequest) (*CreateTaskResponse, error)
 	WatchTask(*WatchTaskRequest, grpc.ServerStreamingServer[TaskEvent]) error
+	BulkCreate(grpc.ClientStreamingServer[CreateTaskRequest, BulkCreateResponse]) error
 	mustEmbedUnimplementedTaskServiceServer()
 }
 
@@ -137,6 +153,9 @@ func (UnimplementedTaskServiceServer) CreateTaskWithId(context.Context, *CreateT
 }
 func (UnimplementedTaskServiceServer) WatchTask(*WatchTaskRequest, grpc.ServerStreamingServer[TaskEvent]) error {
 	return status.Error(codes.Unimplemented, "method WatchTask not implemented")
+}
+func (UnimplementedTaskServiceServer) BulkCreate(grpc.ClientStreamingServer[CreateTaskRequest, BulkCreateResponse]) error {
+	return status.Error(codes.Unimplemented, "method BulkCreate not implemented")
 }
 func (UnimplementedTaskServiceServer) mustEmbedUnimplementedTaskServiceServer() {}
 func (UnimplementedTaskServiceServer) testEmbeddedByValue()                     {}
@@ -242,6 +261,13 @@ func _TaskService_WatchTask_Handler(srv interface{}, stream grpc.ServerStream) e
 // This type alias is provided for backwards compatibility with existing code that references the prior non-generic stream type by name.
 type TaskService_WatchTaskServer = grpc.ServerStreamingServer[TaskEvent]
 
+func _TaskService_BulkCreate_Handler(srv interface{}, stream grpc.ServerStream) error {
+	return srv.(TaskServiceServer).BulkCreate(&grpc.GenericServerStream[CreateTaskRequest, BulkCreateResponse]{ServerStream: stream})
+}
+
+// This type alias is provided for backwards compatibility with existing code that references the prior non-generic stream type by name.
+type TaskService_BulkCreateServer = grpc.ClientStreamingServer[CreateTaskRequest, BulkCreateResponse]
+
 // TaskService_ServiceDesc is the grpc.ServiceDesc for TaskService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -271,6 +297,11 @@ var TaskService_ServiceDesc = grpc.ServiceDesc{
 			StreamName:    "WatchTask",
 			Handler:       _TaskService_WatchTask_Handler,
 			ServerStreams: true,
+		},
+		{
+			StreamName:    "BulkCreate",
+			Handler:       _TaskService_BulkCreate_Handler,
+			ClientStreams: true,
 		},
 	},
 	Metadata: "task/v1/task.proto",
